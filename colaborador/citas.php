@@ -16,7 +16,6 @@ $stmt->fetch();
 $stmt->close();
 
 // Filtro y búsqueda
-$estado = $_GET['estado'] ?? 'nuevo';
 $search = $_GET['search'] ?? '';
 $searchCondition = '';
 if (!empty($search)) {
@@ -40,7 +39,7 @@ $result = $stmt->get_result();
 $pacientes = $result->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
-// Procesar formulario de nueva cita
+// Procesar nueva cita
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['asignar_cita'])) {
     $paciente_id = $_POST['paciente_id'];
     $fecha = $_POST['fecha'];
@@ -57,12 +56,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['asignar_cita'])) {
     $stmt->execute();
     $stmt->close();
 
-    header("Location: citas.php?estado=$estado&success=1");
+    echo '<script>window.location.href="citas.php?success=1";</script>';
     exit;
 }
 
-// Vista de detalle
+// Modal: ver paciente
 $view_id = $_GET['view_id'] ?? null;
+$paciente = null;
+$citas = [];
 if ($view_id) {
     $stmt = $database->prepare("SELECT * FROM paciente WHERE id = ?");
     $stmt->bind_param("i", $view_id);
@@ -78,6 +79,35 @@ if ($view_id) {
     $citas = $result->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 }
+
+// Agregar nuevo paciente
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
+    $nombre = $_POST['nombre'];
+    $cedula = $_POST['cedula'];
+    $fecha_nacimiento = $_POST['fecha_nacimiento'] ?? null;
+    $telefono = $_POST['telefono'] ?? null;
+    $direccion = $_POST['direccion'] ?? null;
+
+    // Verificar si ya existe
+    $stmt = $database->prepare("SELECT id FROM paciente WHERE cedula = ?");
+    $stmt->bind_param("s", $cedula);
+    $stmt->execute();
+    $stmt->store_result();
+    if ($stmt->num_rows > 0) {
+        echo '<script>alert("Ya existe un paciente con esta cédula."); window.location.href="citas.php";</script>';
+        exit;
+    }
+    $stmt->close();
+
+    // Insertar paciente
+    $stmt = $database->prepare("INSERT INTO paciente (cedula, nombre, fecha_nacimiento, telefono, direccion, creado_por, estado) VALUES (?, ?, ?, ?, ?, ?, 'nuevo')");
+    $stmt->bind_param("sssssi", $cedula, $nombre, $fecha_nacimiento, $telefono, $direccion, $colaborador_id);
+    $stmt->execute();
+    $stmt->close();
+
+    echo '<script>alert("Paciente agregado correctamente."); window.location.href="citas.php";</script>';
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
@@ -89,82 +119,29 @@ if ($view_id) {
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/admin.css">
     <style>
-        .action-buttons {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-        }
-
-        .action-buttons button {
-            width: 32px;
-            height: 32px;
-            border: none;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s ease;
-        }
-
-        .action-buttons button:hover {
-            transform: scale(1.1);
-        }
-
-        .btn-icon-view {
-            background-color: #e7f3ff;
-            color: #007bff;
-        }
-
-        .btn-icon-edit {
-            background-color: #d1ecf1;
-            color: #0c5460;
-        }
-
-        .btn-icon-delete {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-
-        .status {
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .status.nuevo {
-            background-color: #f0ad4e;
-            color: white;
-        }
-
-        .status.atendido {
-            background-color: #5cb85c;
-            color: white;
-        }
+        .popup{ animation: transitionIn-Y-bottom 0.5s; }
+        .sub-table{ animation: transitionIn-Y-bottom 0.5s; }
     </style>
 </head>
 <body>
-    <button class="menu-toggle" onclick="toggleMenu()">☰ Menú</button>
     <div class="container">
         <div class="menu">
-            <table class="menu-container">
+            <table class="menu-container" border="0">
                 <tr>
-                    <td colspan="2">
-                        <table class="profile-container">
+                    <td style="padding:10px" colspan="2">
+                        <table border="0" class="profile-container">
                             <tr>
                                 <td width="30%" style="padding-left:20px">
                                     <img src="../img/user.png" alt="" width="100%" style="border-radius:50%">
                                 </td>
                                 <td style="padding:0px;margin:0px;">
-                                    <p class="profile-title"><?= htmlspecialchars(substr($nombreColaborador, 0, 13)) ?></p>
+                                    <p class="profile-title"><?= htmlspecialchars($nombreColaborador) ?></p>
                                     <p class="profile-subtitle">Colaborador</p>
                                 </td>
                             </tr>
                             <tr>
                                 <td colspan="2">
-                                    <a href="../login.php"><input type="button" value="Cerrar Sesión" class="logout-btn btn-primary-soft btn"></a>
+                                    <a href="../login.php"><input type="button" value="Cerrar sesión" class="logout-btn btn-primary-soft btn"></a>
                                 </td>
                             </tr>
                         </table>
@@ -190,181 +167,223 @@ if ($view_id) {
                         <a href="tratamientos.php" class="non-style-link-menu"><p class="menu-text">Tratamientos</p></a>
                     </td>
                 </tr>
-                <tr class="menu-row">
-                    <td class="menu-btn menu-icon-settings">
-                        <a href="registrar_pago.php" class="non-style-link-menu"><p class="menu-text">Registrar Pago</p></a>
-                    </td>
-                </tr>
-                <tr class="menu-row">
-                    <td class="menu-btn menu-icon-settings">
-                        <a href="ajustes.php" class="non-style-link-menu"><p class="menu-text">Ajustes</p></a>
-                    </td>
-                </tr>
             </table>
         </div>
 
-        <div class="dash-body" style="margin-top: 15px">
-            <table border="0" width="100%" style="border-spacing: 0;margin:0;padding:0;">
+        <div class="dash-body">
+            <table border="0" width="100%" style="border-spacing: 0;margin:0;padding:0;margin-top:25px;">
                 <tr>
-                    <td colspan="1" class="nav-bar">
-                        <p style="font-size: 23px;padding-left:12px;font-weight: 600;margin-left:20px;">Gestión de Citas</p>
+                    <td width="13%">
+                        <a href="citas.php"><button class="login-btn btn-primary-soft btn btn-icon-back" style="padding-top:11px;padding-bottom:11px;margin-left:20px;width:125px">Recargar</button></a>
                     </td>
-                    <td width="25%"></td>
-                    <td width="15%">
-                        <p style="font-size: 14px;color: rgb(119, 119, 119);padding: 0;margin: 0;text-align: right;">Fecha de hoy</p>
-                        <p class="heading-sub12" style="padding: 0;margin: 0;"><?= date('Y-m-d') ?></p>
-                    </td>
-                    <td width="10%">
-                        <button class="btn-label" style="display: flex;justify-content: center;align-items: center;">
-                            <img src="../img/calendar.svg" width="100%">
-                        </button>
-                    </td>
-                </tr>
-
-                <!-- Vista de detalle -->
-                <?php if ($view_id && $paciente): ?>
-                <tr>
-                    <td colspan="4">
-                        <center>
-                            <div class="abc scroll" style="margin-top: 20px; width: 95%;">
-                                <h3>Detalles del Paciente</h3>
-                                <table class="sub-table" style="width: 100%;">
-                                    <tr>
-                                        <td><strong>Cédula:</strong></td>
-                                        <td><?= htmlspecialchars($paciente['cedula']) ?></td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Nombre:</strong></td>
-                                        <td><?= htmlspecialchars($paciente['nombre']) ?></td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Teléfono:</strong></td>
-                                        <td><?= htmlspecialchars($paciente['telefono']) ?></td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Estado:</strong></td>
-                                        <td><span class="status <?= $paciente['estado'] ?>"><?= ucfirst($paciente['estado']) ?></span></td>
-                                    </tr>
-                                </table>
-                                <br>
-                                <a href="citas.php?estado=<?= $estado ?>" class="non-style-link">
-                                    <button class="btn-primary-soft btn">← Regresar</button>
-                                </a>
-                            </div>
-                        </center>
-                    </td>
-                </tr>
-                <?php else: ?>
-
-                <!-- Formulario de nueva cita -->
-                <tr>
-                    <td colspan="4">
-                        <center>
-                            <div class="abc scroll" style="margin-top: 20px; width: 95%;">
-                                <h3>Asignar Nueva Cita</h3>
-                                <form method="POST" class="container">
-                                    <label for="paciente_id">Paciente:</label>
-                                    <select name="paciente_id" required>
-                                        <option value="">Seleccione un paciente</option>
-                                        <?php foreach ($pacientes as $p): ?>
-                                            <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nombre']) ?> (<?= $p['cedula'] ?>)</option>
-                                        <?php endforeach; ?>
-                                    </select><br><br>
-
-                                    <label>Fecha:</label>
-                                    <input type="date" name="fecha" required min="<?= date('Y-m-d') ?>"><br><br>
-
-                                    <label>Hora:</label>
-                                    <input type="time" name="hora" required><br><br>
-
-                                    <label>Título:</label>
-                                    <input type="text" name="titulo" placeholder="Ej: Primera sesión" required><br><br>
-
-                                    <button type="submit" name="asignar_cita" class="btn-primary btn">Guardar Cita</button>
-                                </form>
-                            </div>
-                        </center>
-                    </td>
-                </tr>
-
-                <!-- Filtros -->
-                <tr>
-                    <td colspan="4" style="padding-left: 20px;">
-                        <div class="filter-tabs">
-                            <a href="?estado=nuevo"><button class="btn-filter <?= $estado === 'nuevo' ? 'active' : '' ?>">Nuevos</button></a>
-                            <a href="?estado=atendido"><button class="btn-filter <?= $estado === 'atendido' ? 'active' : '' ?>">Atendidos</button></a>
-                        </div>
-                    </td>
-                </tr>
-
-                <!-- Búsqueda -->
-                <tr>
-                    <td colspan="4" style="padding-left: 20px;">
-                        <form method="GET">
-                            <input type="text" name="search" placeholder="Buscar por nombre o cédula" value="<?= htmlspecialchars($search) ?>">
-                            <input type="hidden" name="estado" value="<?= $estado ?>">
-                            <button type="submit" class="btn-primary btn">Buscar</button>
+                    <td>
+                        <form action="" method="get" class="header-search">
+                            <input type="search" name="search" class="input-text header-searchbar" placeholder="Buscar por nombre o cédula" list="pacientes">&nbsp;&nbsp;
+                            <?php
+                                echo '<datalist id="pacientes">';
+                                $list = $database->query("SELECT nombre, cedula FROM paciente");
+                                while($row=$list->fetch_assoc()){
+                                    echo "<option value='".$row["nombre"]."'>";
+                                    echo "<option value='".$row["cedula"]."'>";
+                                }
+                                echo '</datalist>';
+                            ?>
+                            <input type="Submit" value="Buscar" class="login-btn btn-primary btn">
                         </form>
                     </td>
-                </tr>
-
-                <!-- Tabla de pacientes -->
-                <tr>
-                    <td colspan="4">
-                        <center>
-                            <table class="sub-table" style="width: 95%; margin-top: 20px;">
-                                <thead>
-                                    <tr>
-                                        <th class="table-headin">Cédula</th>
-                                        <th class="table-headin">Nombre</th>
-                                        <th class="table-headin">Teléfono</th>
-                                        <th class="table-headin">Estado</th>
-                                        <th class="table-headin">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($pacientes as $p): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($p['cedula']) ?></td>
-                                        <td><?= htmlspecialchars($p['nombre']) ?></td>
-                                        <td><?= htmlspecialchars($p['telefono']) ?></td>
-                                        <td><span class="status <?= $p['estado'] ?>"><?= ucfirst($p['estado']) ?></span></td>
-                                        <td>
-                                            <div class="action-buttons">
-                                                <a href="citas.php?view_id=<?= $p['id'] ?>" class="non-style-link">
-                                                    <button class="btn-icon-view">👁️</button>
-                                                </a>
-                                                <?php if ($p['estado'] === 'nuevo'): ?>
-                                                    <a href="citas.php?edit_id=<?= $p['id'] ?>" class="non-style-link">
-                                                        <button class="btn-icon-edit">✏️</button>
-                                                    </a>
-                                                <?php endif; ?>
-                                                <a href="citas.php?delete_id=<?= $p['id'] ?>" class="non-style-link" onclick="return confirm('¿Eliminar este paciente?')">
-                                                    <button class="btn-icon-delete">🗑️</button>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </center>
+                    <td width="15%">
+                        <p style="font-size: 14px;color: rgb(119, 119, 119);padding: 0;margin: 0;text-align: right;">Fecha</p>
+                        <p class="heading-sub12"><?= date('Y-m-d') ?></p>
+                    </td>
+                    <td width="10%">
+                        <button class="btn-label"><img src="../img/calendar.svg" width="100%"></button>
                     </td>
                 </tr>
-                <?php endif; ?>
+                <tr>
+                    <td colspan="2" style="padding-top:30px;">
+                        <p class="heading-main12" style="margin-left: 45px;font-size:20px;">Agregar Nueva Cita</p>
+                    </td>
+                    <td colspan="2">
+                        <a href="?action=add_patient" class="non-style-link">
+                            <button class="login-btn btn-primary btn button-icon">Agregar Paciente</button>
+                        </a>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="4" style="padding-top:10px;">
+                        <p class="heading-main12" style="margin-left: 45px;font-size:18px;">
+                            Todos los pacientes (<?= count($pacientes) ?>)
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                   <td colspan="4">
+                       <center>
+                        <div class="abc scroll">
+                        <table width="93%" class="sub-table scrolldown" border="0">
+                            <thead>
+                                <tr>
+                                    <th class="table-headin">Cédula</th>
+                                    <th class="table-headin">Nombre</th>
+                                    <th class="table-headin">Teléfono</th>
+                                    <th class="table-headin">Estado</th>
+                                    <th class="table-headin">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php if (empty($pacientes)): ?>
+                                <tr><td colspan="5"><br><center>
+                                    <img src="../img/notfound.svg" width="25%">
+                                    <p class="heading-main12">No se encontraron pacientes</p>
+                                </center><br></td></tr>
+                            <?php else: ?>
+                                <?php foreach($pacientes as $p): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($p['cedula']) ?></td>
+                                    <td><?= htmlspecialchars($p['nombre']) ?></td>
+                                    <td><?= htmlspecialchars($p['telefono']) ?></td>
+                                    <td><span class="status <?= $p['estado'] ?>"><?= ucfirst($p['estado']) ?></span></td>
+                                    <td>
+                                        <div style="display:flex;justify-content:center;">
+                                            <a href="?action=view&view_id=<?= $p['id'] ?>" class="non-style-link"><button class="btn-primary-soft btn button-icon btn-view">Ver</button></a>&nbsp;&nbsp;
+                                            <a href="?action=add&paciente_id=<?= $p['id'] ?>" class="non-style-link"><button class="btn-primary-soft btn button-icon">Cita</button></a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                            </tbody>
+                        </table>
+                        </div>
+                       </center>
+                   </td>
+                </tr>
             </table>
         </div>
     </div>
 
-    <script>
-        function toggleMenu() {
-            const menu = document.querySelector('.menu');
-            menu.classList.toggle('show');
-        }
+    <?php
+    // Modal: Agregar cita
+    if ($_GET['action'] === 'add') {
+        $paciente_id = $_GET['paciente_id'] ?? '';
+        echo '
+        <div id="popup1" class="overlay">
+            <div class="popup">
+                <center>
+                    <a class="close" href="citas.php">&times;</a>
+                    <div style="display:flex;justify-content:center;">
+                        <div class="abc">
+                            <table width="80%" class="sub-table" border="0">
+                                <tr><td><p style="font-size:25px;">Asignar Nueva Cita</p></td></tr>
+                                <form action="citas.php" method="POST">
+                                <tr><td class="label-td">Paciente:</td></tr>
+                                <tr><td>
+                                    <select name="paciente_id" required>';
+                                    foreach ($pacientes as $p) {
+                                        $selected = $p['id'] == $paciente_id ? 'selected' : '';
+                                        echo "<option value='{$p['id']}' $selected>{$p['nombre']} ({$p['cedula']})</option>";
+                                    }
+        echo '                  </select>
+                                </td></tr>
+                                <tr><td class="label-td">Fecha:</td></tr>
+                                <tr><td><input type="date" name="fecha" required min="'.date('Y-m-d').'"></td></tr>
+                                <tr><td class="label-td">Hora:</td></tr>
+                                <tr><td><input type="time" name="hora" required></td></tr>
+                                <tr><td class="label-td">Título:</td></tr>
+                                <tr><td><input type="text" name="titulo" placeholder="Ej: Primera sesión" required></td></tr>
+                                <tr><td colspan="2">
+                                    <input type="reset" value="Limpiar" class="login-btn btn-primary-soft btn">&nbsp;&nbsp;
+                                    <input type="submit" name="asignar_cita" value="Guardar" class="login-btn btn-primary btn">
+                                </td></tr>
+                                </form>
+                            </table>
+                        </div>
+                    </div>
+                </center>
+            </div>
+        </div>';
+    }
 
-        <?php if (isset($_GET['success'])): ?>
-            alert("Cita asignada correctamente.");
-        <?php endif; ?>
-    </script>
+    // Modal: Ver paciente
+    if ($view_id && $paciente) {
+        echo '
+        <div id="popup1" class="overlay">
+            <div class="popup">
+                <center>
+                    <a class="close" href="citas.php">&times;</a>
+                    <div style="display:flex;justify-content:center;">
+                        <div class="abc">
+                            <table width="80%" class="sub-table" border="0">
+                                <tr><td><p style="font-size:25px;">Detalles del Paciente</p></td></tr>
+                                <tr><td class="label-td"><label>Nombre:</label></td></tr>
+                                <tr><td class="label-td">'.$paciente['nombre'].'</td></tr>
+                                <tr><td class="label-td"><label>Cédula:</label></td></tr>
+                                <tr><td class="label-td">'.$paciente['cedula'].'</td></tr>
+                                <tr><td class="label-td"><label>Teléfono:</label></td></tr>
+                                <tr><td class="label-td">'.$paciente['telefono'].'</td></tr>
+                                <tr><td class="label-td"><label>Estado:</label></td></tr>
+                                <tr><td class="label-td">'.ucfirst($paciente['estado']).'</td></tr>
+                                <tr><td><br><a href="citas.php"><input type="button" value="Cerrar" class="login-btn btn-primary-soft btn"></a></td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </center>
+            </div>
+        </div>';
+    }
+
+    // Modal: éxito
+    if (isset($_GET['success'])) {
+        echo '
+        <div id="popup1" class="overlay">
+            <div class="popup"><center><br>
+                <h2>¡Cita asignada con éxito!</h2>
+                <a class="close" href="citas.php">&times;</a>
+                <div style="display:flex;justify-content:center;">
+                    <a href="citas.php" class="non-style-link"><button class="btn-primary btn">OK</button></a>
+                </div><br>
+            </center></div>
+        </div>';
+    }
+    // Modal: agregar paciente 
+        if ($_GET['action'] === 'add_patient') {
+            echo '
+            <div id="popup1" class="overlay">
+                <div class="popup">
+                    <center>
+                        <a class="close" href="citas.php">&times;</a>
+                        <div style="display:flex;justify-content:center;">
+                            <div class="abc">
+                                <table width="80%" class="sub-table" border="0">
+                                    <tr><td><p style="font-size:25px;">Agregar Nuevo Paciente</p></td></tr>
+                                    <form action="citas.php" method="POST">
+                                    <tr><td class="label-td">Nombre:</td></tr>
+                                    <tr><td><input type="text" name="nombre" class="input-text" required></td></tr>
+
+                                    <tr><td class="label-td">Cédula:</td></tr>
+                                    <tr><td><input type="text" name="cedula" class="input-text" required></td></tr>
+
+                                    <tr><td class="label-td">Fecha de Nacimiento:</td></tr>
+                                    <tr><td><input type="date" name="fecha_nacimiento" class="input-text"></td></tr>
+
+                                    <tr><td class="label-td">Teléfono:</td></tr>
+                                    <tr><td><input type="text" name="telefono" class="input-text"></td></tr>
+
+                                    <tr><td class="label-td">Dirección:</td></tr>
+                                    <tr><td><input type="text" name="direccion" class="input-text"></td></tr>
+
+                                    <tr><td colspan="2">
+                                        <input type="reset" value="Limpiar" class="login-btn btn-primary-soft btn">&nbsp;&nbsp;
+                                        <input type="submit" name="add_patient" value="Guardar" class="login-btn btn-primary btn">
+                                    </td></tr>
+                                    </form>
+                                </table>
+                            </div>
+                        </div>
+                    </center>
+                </div>
+            </div>';
+        }
+        ?>
 </body>
 </html>

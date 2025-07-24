@@ -136,7 +136,7 @@ $query->close();
         $colaboradorResult = $database->query("SELECT COUNT(*) AS total FROM usuario WHERE rol='colaborador'");
         $colaboradores = $colaboradorResult->fetch_assoc()['total'];
 
-        $ingresoResult = $database->query("SELECT SUM(monto) AS total FROM ingreso");
+        $ingresoResult = $database->query("SELECT SUM(monto) AS total FROM ingresos");
         $ingresos = $ingresoResult->fetch_assoc()['total'] ?? 0;
 
         $horarioResult = $database->query("SELECT COUNT(*) AS total FROM horario WHERE fecha='$today'");

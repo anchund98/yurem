@@ -35,7 +35,7 @@ switch ($modo) {
 
 // Consulta con filtros
 $sql = "SELECT i.id, i.fecha, i.monto, i.descripcion, p.nombre AS paciente, u.nombre AS colaborador
-        FROM ingreso i
+        FROM ingresos i
         JOIN paciente p ON i.paciente_id = p.id
         JOIN usuario u  ON i.colaborador_id = u.id
         WHERE i.fecha BETWEEN ? AND ?";
@@ -57,7 +57,7 @@ $stmt->execute();
 $res = $stmt->get_result();
 
 // Total
-$totalSql = "SELECT SUM(monto) FROM ingreso WHERE fecha BETWEEN ? AND ?";
+$totalSql = "SELECT SUM(monto) FROM ingresos WHERE fecha BETWEEN ? AND ?";
 $totalParams = [$inicio, $fin];
 $totalTypes  = "ss";
 
@@ -77,7 +77,7 @@ $stmt2->close();
 // Colaboradores activos
 $colaboradores = $database->query("SELECT DISTINCT u.id, u.nombre 
                                    FROM usuario u 
-                                   JOIN ingreso i ON u.id = i.colaborador_id
+                                   JOIN ingresos i ON u.id = i.colaborador_id
                                    WHERE u.rol='colaborador' AND u.estado=1
                                    ORDER BY u.nombre");
 ?>

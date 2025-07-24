@@ -278,6 +278,12 @@ $query->close();
                                         <tr><td><input type="text" name="name" class="input-text" placeholder="Nombre completo" required></td></tr>
                                         <tr><td class="label-td"><label>Cédula:</label></td></tr>
                                         <tr><td><input type="text" name="cedula" class="input-text" placeholder="Cédula" required></td></tr>
+                                        <tr><td class="label-td"><label>Correo:</label></td></tr>
+                                        <tr><td><input type="email" name="correo" class="input-text" placeholder="correo@ejemplo.com" required></td></tr>
+                                        <tr><td class="label-td"><label>Teléfono:</label></td></tr>
+                                        <tr><td><input type="text" name="telefono" class="input-text" placeholder="Teléfono"></td></tr>
+                                        <tr><td class="label-td"><label>Área de trabajo:</label></td></tr>
+                                        <tr><td><input type="text" name="area_trabajo" class="input-text" placeholder="Ej: Terapia emocional"></td></tr>
                                         <tr><td class="label-td"><label>Contraseña:</label></td></tr>
                                         <tr><td><input type="password" name="password" class="input-text" placeholder="Contraseña" required></td></tr>
                                         <tr><td class="label-td"><label>Confirmar:</label></td></tr>

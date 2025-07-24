@@ -1,0 +1,27 @@
+image: php:8.1
+
+variables:
+  DB_HOST: gondola.proxy.rlwy.net
+  DB_PORT: 13360
+  DB_USERNAME: root
+  DB_PASSWORD: hoccuvvaxerPMVBrfjdmUUykSwnGaAtO
+  DB_NAME: railway
+
+stages:
+  - test
+  - deploy
+
+before_script:
+  - apt-get update && apt-get install -y default-mysql-client
+
+test_mysql:
+  stage: test
+  script:
+    - echo "🔍 Probando conexión a la base de datos..."
+    - mysql -h $DB_HOST -P $DB_PORT -u $DB_USERNAME --password=$DB_PASSWORD -e "USE $DB_NAME; SHOW TABLES;"
+
+deploy_app:
+  stage: deploy
+  script:
+    - echo "🚀 Preparando despliegue..."
+    - ls -la

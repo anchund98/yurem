@@ -30,7 +30,7 @@ if ($_POST) {
     $result = $database->query("SELECT * FROM usuario WHERE cedula='$cedula'");
     if ($result->num_rows == 1) {
         $data = $result->fetch_assoc();
-        if ($data['contraseña'] === $contraseña) {
+        if (password_verify($contraseña, $data['contraseña'])) {
             $_SESSION['usuario'] = $cedula;
             $_SESSION['rol'] = $data['rol'];
 

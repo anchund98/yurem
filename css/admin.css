@@ -132,27 +132,3 @@
     
 }
 
-
-
-.status {
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.status.nuevo {
-    background-color: #f0ad4e;
-    color: white;
-}
-
-.status.atendido {
-    background-color: #5cb85c;
-    color: white;
-}
-
-.btn-danger-soft {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f1b0b7;
-}
